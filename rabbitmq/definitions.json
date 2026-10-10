@@ -1,0 +1,133 @@
+{
+    "exchanges": [
+        {
+            "name": "cuidado.seguro.exchange",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "internal": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.direct",
+            "vhost": "/",
+            "type": "direct",
+            "durable": true,
+            "auto_delete": false,
+            "internal": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.dlx",
+            "vhost": "/",
+            "type": "direct",
+            "durable": true,
+            "auto_delete": false,
+            "internal": false,
+            "arguments": {}
+        }
+    ],
+    "queues": [
+        {
+            "name": "cuidado.seguro.pacientes",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.fichas",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.signos-vitales",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.pacientes.dlq",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.fichas.dlq",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "cuidado.seguro.signos-vitales.dlq",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        }
+    ],
+    "bindings": [
+        {
+            "source": "cuidado.seguro.exchange",
+            "vhost": "/",
+            "destination": "cuidado.seguro.pacientes",
+            "destination_type": "queue",
+            "routing_key": "paciente.*",
+            "arguments": {}
+        },
+        {
+            "source": "cuidado.seguro.exchange",
+            "vhost": "/",
+            "destination": "cuidado.seguro.fichas",
+            "destination_type": "queue",
+            "routing_key": "ficha.*",
+            "arguments": {}
+        },
+        {
+            "source": "cuidado.seguro.exchange",
+            "vhost":"/",
+            "destination": "cuidado.seguro.signos-vitales",
+            "destination_type": "queue",
+            "routing_key": "signos-vitales.*",
+            "arguments":{}
+        },
+        {
+            "source": "cuidado.seguro.direct",
+            "vhost":"/",
+            "destination":"cuidado.seguro.pacientes",
+            "destination_type": "queue",
+            "routing_key": "paciente.direct",
+            "arguments": {}
+        },
+        {
+            "source": "cuidado.seguro.dlx",
+            "vhost": "/",
+            "destination": "cuidado.seguro.pacientes.dlq",
+            "destination_type":"queue",
+            "routing_key": "paciente.dlq",
+            "arguments": {}
+        },
+        {
+            "source": "cuidado.seguro.dlx",
+            "vhost": "/",
+            "destination": "cuidado.seguro.fichas.dlq",
+            "destination_type": "queue",
+            "routing_key": "fichas.dlq",
+            "arguments": {}
+        },
+        {
+            "source": "cuidado.seguro.dlx",
+            "vhost": "/",
+            "destination": "cuidado.seguro.signos-vitales.dlq",
+            "destination_type": "queue",
+            "routing_key": "signos-vitales.dlq",
+            "arguments": {}
+        }
+    ]
+}
