@@ -1,19 +1,45 @@
 services:
-
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: cuidado-seguro-rabbitmq
-
+    container_name: cuidadoseguro-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-cuidado_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-cuidado_pass_change_me}
     ports:
       - "5672:5672"
       - "15672:15672"
-
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
-
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  queues:
+    build:
+      context: ./queues
+      dockerfile: Dockerfile
+    container_name: cuidadoseguro-queues
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8086
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-cuidado_user}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-cuidado_pass_change_me}
+      # The PDF service is not included in Queue_v7.zip.
+      # If it runs on the same Windows host, host.docker.internal reaches it.
+      PDF_SERVICE_URL: ${PDF_SERVICE_URL:-http://host.docker.internal:8000}
+    ports:
+      - "8086:8086"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   rabbitmq_data:
