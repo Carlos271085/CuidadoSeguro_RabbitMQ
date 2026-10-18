@@ -5,7 +5,7 @@ import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.FanoutExchange;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +32,9 @@ public class RabbitAdminService {
                 new DirectExchange(nombre, true, false));
     }
 
-    public void crearExchangeFanout(String nombre) {
+    public void crearExchangeTopic(String nombre) {
         amqpAdmin.declareExchange(
-                new FanoutExchange(nombre, true, false));
+                new TopicExchange(nombre, true, false));
     }
 
     public void eliminarExchange(String nombre) {
@@ -63,21 +63,23 @@ public class RabbitAdminService {
         amqpAdmin.declareBinding(binding);
         }
 
-        public void crearBindingFanout(
+        public void crearBindingTopic(
                 String nombreCola,
-                String nombreExchange) {
+                String nombreExchange,
+                String routingKey) {
 
         Queue cola = new Queue(nombreCola, true);
 
-        FanoutExchange exchange =
-                new FanoutExchange(nombreExchange, true, false);
+        TopicExchange exchange =
+                new TopicExchange(nombreExchange, true, false);
 
         amqpAdmin.declareQueue(cola);
         amqpAdmin.declareExchange(exchange);
 
         Binding binding = BindingBuilder
                 .bind(cola)
-                .to(exchange);
+                .to(exchange)
+                .with(routingKey);
 
         amqpAdmin.declareBinding(binding);
         }
@@ -101,18 +103,20 @@ public class RabbitAdminService {
         amqpAdmin.removeBinding(binding);
     }
 
-    public void eliminarBindingFanout(
+    public void eliminarBindingTopic(
             String nombreCola,
-            String nombreExchange) {
+            String nombreExchange,
+            String routingKey) {
 
         Queue cola = new Queue(nombreCola, true);
 
-        FanoutExchange exchange =
-                new FanoutExchange(nombreExchange, true, false);
+        TopicExchange exchange =
+                new TopicExchange(nombreExchange, true, false);
 
         Binding binding = BindingBuilder
                 .bind(cola)
-                .to(exchange);
+                .to(exchange)
+                .with(routingKey);
 
         amqpAdmin.removeBinding(binding);
     }

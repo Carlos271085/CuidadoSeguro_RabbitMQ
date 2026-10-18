@@ -53,22 +53,13 @@ public class MainController {
             .baseUrl(pdfServiceBaseUrl)
             .build();
     }
-    
+
     @GetMapping
     public Map<String, String> ayuda() {
         return Map.of(
-                "correos_fanout", "POST /api/correo Emite un correo a la cola de correos (fanout)",
-                "pdf_fanout", "GET /api/pdf_fanout  Emite un PDF a la cola de PDFs (fanout)",
+                "pdf_topic", "POST /api/pdf_topic Emite un PDF a la cola de PDFs (topic)",
                 "pdf_direct", "GET /api/pdf_direct  Emite un PDF a la cola de PDFs (direct)"
         );
-    }
-
-    @PostMapping ("/correo")
-    public String correo() {
-        String mensaje = "Correo enviado a las " + System.currentTimeMillis();
-        log.info("Enviando mensaje a la cola de correos (fanout): {}", mensaje);
-        rabbitTemplate.convertAndSend(RabbitConfig.FO_EXCHANGE, "", mensaje);
-        return "Mensaje enviado a la cola de correos (fanout): " + mensaje;
     }
 
     @PostMapping("/descargar")
@@ -128,39 +119,29 @@ public class MainController {
                 .body(pdf);
     }
 
-    
-        @PostMapping("/pdf_direct")
-        public ResponseEntity<Map<String, String>> solicitarPDFDirect(
-                @Valid @RequestBody DatosPDF datos) {
+    @PostMapping(value = "/pdf_direct", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> descargarPDFDirecto(
+            @Valid @RequestBody DatosPDF datos) {
+        byte[] pdf = pdfClient.post()
+                .uri("/api/pdf/generar")
+                .body(datos)
+                .retrieve()
+                .body(byte[].class);
 
-        String requestId = UUID.randomUUID().toString();
-
-        storage.iniciar(requestId);
-
-        SolicitudPDF solicitud =
-                new SolicitudPDF(requestId, datos);
-
-        rabbitTemplate.convertAndSend(
-                RabbitConfig.DI_EXCHANGE,
-                RabbitConfig.PDF_DI,
-                solicitud
-        );
-
-        log.info(
-                "Solicitud PDF enviada por Direct. ID: {}",
-                requestId
-        );
-
-        return ResponseEntity.accepted().body(Map.of(
-                "requestId", requestId,
-                "exchange", RabbitConfig.DI_EXCHANGE,
-                "routingKey", RabbitConfig.PDF_DI,
-                "estado", "PROCESANDO"
-        ));
+        if (pdf == null || pdf.length == 0) {
+            throw new IllegalStateException("El servicio PDF devolvió un archivo vacío");
         }
 
-        @PostMapping("/pdf_fanout")
-        public ResponseEntity<Map<String, String>> solicitarPDFFanout(
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"ficha-clinica.pdf\"")
+                .body(pdf);
+    }
+
+    @PostMapping("/pdf_topic")
+        public ResponseEntity<Map<String, String>> solicitarPDFTopic(
                 @Valid @RequestBody DatosPDF datos) {
 
         String requestId = UUID.randomUUID().toString();
@@ -171,19 +152,20 @@ public class MainController {
                 new SolicitudPDF(requestId, datos);
 
         rabbitTemplate.convertAndSend(
-                RabbitConfig.FO_EXCHANGE,
-                "",
+                RabbitConfig.PDF_TOPIC_EXCHANGE,
+                RabbitConfig.PDF_GENERAR_KEY,
                 solicitud
         );
 
         log.info(
-                "Solicitud PDF enviada por Fanout. ID: {}",
+                "Solicitud PDF enviada por Topic. ID: {}",
                 requestId
         );
 
         return ResponseEntity.accepted().body(Map.of(
                 "requestId", requestId,
-                "exchange", RabbitConfig.FO_EXCHANGE,
+                "exchange", RabbitConfig.PDF_TOPIC_EXCHANGE,
+                "routingKey", RabbitConfig.PDF_GENERAR_KEY,
                 "estado", "PROCESANDO"
         ));
         }

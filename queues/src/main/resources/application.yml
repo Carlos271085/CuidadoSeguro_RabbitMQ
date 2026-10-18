@@ -18,3 +18,7 @@ spring:
 pdf:
   service:
     base-url: ${PDF_SERVICE_URL:http://localhost:8000}
+
+notification:
+  service:
+    base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8089}

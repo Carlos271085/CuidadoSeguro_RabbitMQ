@@ -36,6 +36,7 @@ services:
       # The PDF service is not included in Queue_v7.zip.
       # If it runs on the same Windows host, host.docker.internal reaches it.
       PDF_SERVICE_URL: ${PDF_SERVICE_URL:-http://host.docker.internal:8000}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://host.docker.internal:8089}
     ports:
       - "8086:8086"
     extra_hosts:

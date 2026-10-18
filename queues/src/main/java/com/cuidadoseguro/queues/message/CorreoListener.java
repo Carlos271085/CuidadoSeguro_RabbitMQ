@@ -1,4 +1,3 @@
-
 package com.cuidadoseguro.queues.message;
 
 import java.io.IOException;
@@ -6,11 +5,14 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 import com.cuidadoseguro.queues.config.RabbitConfig;
+import com.cuidadoseguro.queues.dto.SolicitudCorreoPDF;
 import com.rabbitmq.client.Channel;
 
 @Component
@@ -20,9 +22,18 @@ public class CorreoListener {
             LoggerFactory.getLogger(CorreoListener.class);
 
     private final Inbox bandeja;
+    private final RestClient notificationClient;
 
-    public CorreoListener(Inbox bandeja) {
+    public CorreoListener(
+            Inbox bandeja,
+            RestClient.Builder builder,
+            @Value("${notification.service.base-url:http://localhost:8089}")
+            String notificationServiceBaseUrl) {
+
         this.bandeja = bandeja;
+        this.notificationClient = builder
+                .baseUrl(notificationServiceBaseUrl)
+                .build();
     }
 
     @RabbitListener(
@@ -30,23 +41,34 @@ public class CorreoListener {
         containerFactory = "manualFactory"
     )
     public void correo(
-            String message,
+            SolicitudCorreoPDF solicitud,
             Channel channel,
             @Header(AmqpHeaders.DELIVERY_TAG) long tag)
             throws IOException {
 
         try {
-            logger.info("Correo recibido: {}", message);
+            logger.info(
+                    "Solicitud de correo recibida para PDF: {}",
+                    solicitud.getRequestId());
+
+            notificationClient.post()
+                    .uri("/api/correos/enviar-pdf")
+                    .body(solicitud)
+                    .retrieve()
+                    .toBodilessEntity();
 
             bandeja.anotar(
                     RabbitConfig.COLA_CORREO,
-                    "Procesado: " + message);
+                    "Correo enviado para solicitud PDF: "
+                            + solicitud.getRequestId());
+            logger.info(
+                    "Correo enviado para solicitud PDF: {}",
+                    solicitud.getRequestId());
 
             channel.basicAck(tag, false);
 
         } catch (Exception e) {
-
-            logger.error("Error procesando correo", e);
+            logger.error("Error enviando correo", e);
 
             channel.basicNack(tag, false, false);
         }

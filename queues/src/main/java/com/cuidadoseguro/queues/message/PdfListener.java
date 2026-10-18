@@ -6,12 +6,14 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import java.util.Base64;
 import org.springframework.web.client.RestClient;
-
+import com.cuidadoseguro.queues.dto.SolicitudCorreoPDF;
 import com.cuidadoseguro.queues.config.RabbitConfig;
 import com.cuidadoseguro.queues.dto.SolicitudPDF;
 import com.cuidadoseguro.queues.service.PdfStorageService;
@@ -25,10 +27,12 @@ public class PdfListener {
 
     private final RestClient restClient;
     private final PdfStorageService storage;
+    private final RabbitTemplate rabbitTemplate;
 
     public PdfListener(
             RestClient.Builder builder,
             PdfStorageService storage,
+            RabbitTemplate rabbitTemplate,
             @Value("${pdf.service.base-url:http://localhost:8000}") String pdfServiceBaseUrl) {
 
         this.restClient = builder
@@ -36,35 +40,36 @@ public class PdfListener {
                 .build();
 
         this.storage = storage;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @RabbitListener(
         queues = RabbitConfig.COLA_PDF_DI,
         containerFactory = "manualFactory"
     )
-    public void generarPDFDirect(
+    public byte[] generarPDFDirect(
             SolicitudPDF solicitud,
             Channel channel,
             @Header(AmqpHeaders.DELIVERY_TAG) long tag)
             throws IOException {
 
-        procesarPDF(solicitud, channel, tag);
+        return procesarPDF(solicitud, channel, tag);
     }
 
     @RabbitListener(
-        queues = RabbitConfig.COLA_PDF_FO,
+        queues = RabbitConfig.COLA_PDF_TOPIC,
         containerFactory = "manualFactory"
     )
-    public void generarPDFFanout(
+    public byte[] generarPDFTopic(
             SolicitudPDF solicitud,
             Channel channel,
             @Header(AmqpHeaders.DELIVERY_TAG) long tag)
             throws IOException {
 
-        procesarPDF(solicitud, channel, tag);
+        return procesarPDF(solicitud, channel, tag);
     }
 
-    private void procesarPDF(
+    private byte[] procesarPDF(
             SolicitudPDF solicitud,
             Channel channel,
             long tag) throws IOException {
@@ -87,11 +92,34 @@ public class PdfListener {
 
             storage.guardar(requestId, pdf);
 
+            if (solicitud.getDatos().isEnviarCorreo()) {
+                String correoDestino = solicitud.getDatos().getCorreoDestino();
+
+                if (correoDestino == null || correoDestino.isBlank()) {
+                    throw new IllegalArgumentException(
+                            "El correo de destino es obligatorio para enviar el PDF");
+                }
+
+                SolicitudCorreoPDF correo = new SolicitudCorreoPDF(
+                        requestId,
+                        correoDestino,
+                        solicitud.getDatos().getNombre(),
+                        "ficha-clinica-" + requestId + ".pdf",
+                        Base64.getEncoder().encodeToString(pdf));
+
+                rabbitTemplate.convertAndSend(
+                        RabbitConfig.TOPIC_EXCHANGE,
+                        RabbitConfig.CORREO_ENVIAR_KEY,
+                        correo);
+            }
+
             channel.basicAck(tag, false);
 
             logger.info(
-                    "PDF generado y mensaje confirmado: {}",
+                    "PDF generado para solicitud: {}",
                     requestId);
+
+            return pdf;
 
         } catch (Exception e) {
 
@@ -102,7 +130,7 @@ public class PdfListener {
             try {
                 storage.registrarError(
                         solicitud.getRequestId(),
-                        "Error al generar el PDF");
+                        "Error al generar el PDF o encolar el correo");
 
                 channel.basicNack(tag, false, false);
 
@@ -116,5 +144,6 @@ public class PdfListener {
                         ackError);
             }
         }
+        return new byte[0];
     }
 }

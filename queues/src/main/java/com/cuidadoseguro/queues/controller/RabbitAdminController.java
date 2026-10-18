@@ -50,8 +50,8 @@ public class RabbitAdminController {
                        "nombre", name));
     }
 
-    @PostMapping("/exchanges/fanout/{name}")
-    public ResponseEntity<?> crearFanout(
+    @PostMapping("/exchanges/topic/{name}")
+    public ResponseEntity<?> crearTopic(
             @PathVariable String name) {
 
         if (!nombreValido(name)) {
@@ -59,10 +59,10 @@ public class RabbitAdminController {
                     Map.of("error", "Nombre de exchange inválido"));
         }
 
-        service.crearExchangeFanout(name);
+        service.crearExchangeTopic(name);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                Map.of("mensaje", "Exchange Fanout declarado",
+                Map.of("mensaje", "Exchange Topic declarado",
                        "nombre", name));
     }
 
@@ -94,20 +94,25 @@ public class RabbitAdminController {
                     Map.of("mensaje", "Binding Direct declarado"));
         }
 
-        @PostMapping("/bindings/fanout")
-        public ResponseEntity<?> crearBindingFanout(
+        @PostMapping("/bindings/topic")
+        public ResponseEntity<?> crearBindingTopic(
                 @RequestParam String cola,
-                @RequestParam String exchange) {
+                @RequestParam String exchange,
+                @RequestParam String routingKey) {
 
-            if (!nombreValido(cola) || !nombreValido(exchange)) {
+            if (!nombreValido(cola)
+                    || !nombreValido(exchange)
+                    || routingKey == null
+                    || routingKey.isBlank()
+                    || routingKey.length() > 100) {
                 return ResponseEntity.badRequest().body(
                         Map.of("error", "Parámetros de binding inválidos"));
             }
 
-            service.crearBindingFanout(cola, exchange);
+            service.crearBindingTopic(cola, exchange, routingKey);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                    Map.of("mensaje", "Binding Fanout declarado"));
+                    Map.of("mensaje", "Binding Topic declarado"));
         }
 
                 

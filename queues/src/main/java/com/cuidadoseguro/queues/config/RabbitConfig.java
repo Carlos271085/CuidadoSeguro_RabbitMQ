@@ -6,7 +6,7 @@ import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.FanoutExchange;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -26,9 +26,11 @@ public class RabbitConfig {
     public static final String ALL_LOGS_QUEUE = "all_logs_queue";
     public static final String ERRORS_ONLY_QUEUE = "errors_only_queue";
 
-    public static final String FO_EXCHANGE = "fanout_exchange";
+    public static final String TOPIC_EXCHANGE = "topic_exchange";
     public static final String COLA_CORREO = "cola_correo";
-    public static final String COLA_PDF_FO = "cola_pdf_fo";
+    public static final String COLA_PDF_TOPIC = "cola_pdf_topic";
+    public static final String PDF_GENERAR_KEY = "pdf.generar";
+    public static final String CORREO_ENVIAR_KEY = "correo.enviar";
 
     public static final String DI_EXCHANGE = "direct_exchange";
     public static final String COLA_PDF_DI = "cola_pdf_di";
@@ -53,13 +55,25 @@ public class RabbitConfig {
 
     public static final String COLA_CORREO_DLQ = "cola_correo.dlq";
     public static final String COLA_PDF_DI_DLQ = "cola_pdf_di.dlq";
-    public static final String COLA_PDF_FO_DLQ = "cola_pdf_fo.dlq";
+    public static final String COLA_PDF_TOPIC_DLQ = "cola_pdf_topic.dlq";
     
     public static final String DLQ_CORREO_KEY = "dlq.correo";
     public static final String DLQ_PDF_DI_KEY = "dlq.pdf.direct";
-    public static final String DLQ_PDF_FO_KEY = "dlq.pdf.fanout";
+    public static final String DLQ_PDF_TOPIC_KEY = "dlq.pdf.topic";
 
     public static final String EVENTOS_EXCHANGE = "eventos_exchange";
+
+
+///////////////////////////////////////////////////////////
+public static final String PDF_TOPIC_EXCHANGE =
+        "pdf_topic_exchange";
+
+@Bean
+TopicExchange pdfTopicExchange() {
+    return new TopicExchange(PDF_TOPIC_EXCHANGE);
+}
+
+///////////////////////////////////////////////////////////
     @Bean
     RestClient.Builder restClientBuilder() {
         return RestClient.builder();
@@ -132,8 +146,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    FanoutExchange fanout() {
-        return new FanoutExchange(FO_EXCHANGE);
+    TopicExchange topic() {
+        return new TopicExchange(TOPIC_EXCHANGE);
     }
 
     @Bean
@@ -166,14 +180,14 @@ public class RabbitConfig {
     }
 
     @Bean
-    Queue colaPdfFanout() {
+    Queue colaPdfTopic() {
         Map<String, Object> args = new HashMap<>();
 
         args.put("x-dead-letter-exchange", DLX_EXCHANGE);
-        args.put("x-dead-letter-routing-key", DLQ_PDF_FO_KEY);
+        args.put("x-dead-letter-routing-key", DLQ_PDF_TOPIC_KEY);
         
         return new Queue(
-            COLA_PDF_FO, true, false, false, args
+            COLA_PDF_TOPIC, true, false, false, args
         );
     }
 
@@ -190,19 +204,21 @@ public class RabbitConfig {
     }
 
     @Bean
-    Binding correoBinding(@Qualifier("colaCorreo") Queue colaCorreo, @Qualifier("fanout") FanoutExchange fanout) {
-        return BindingBuilder.bind(colaCorreo).to(fanout);
+    Binding correoBinding(@Qualifier("colaCorreo") Queue colaCorreo, @Qualifier("topic") TopicExchange topic) {
+        return BindingBuilder.bind(colaCorreo).to(topic).with(CORREO_ENVIAR_KEY);
     }
 
-    @Bean
-    Binding pdfFanoutBinding(
-            @Qualifier("colaPdfFanout") Queue colaPdfFo,
-            @Qualifier("fanout") FanoutExchange fanoutExchange) {
+@Bean
+Binding pdfTopicBinding(
+        @Qualifier("colaPdfTopic") Queue colaPdfTopic,
+        @Qualifier("pdfTopicExchange")
+        TopicExchange pdfTopicExchange) {
 
-        return BindingBuilder
-                .bind(colaPdfFo)
-                .to(fanoutExchange);
-    }
+    return BindingBuilder
+            .bind(colaPdfTopic)
+            .to(pdfTopicExchange)
+            .with(PDF_GENERAR_KEY);
+}
 
     @Bean
     Binding pdfDirectBinding(
@@ -234,8 +250,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    FanoutExchange ordersDlx() {
-        return new FanoutExchange(ORDERS_DLX);
+    TopicExchange ordersDlx() {
+        return new TopicExchange(ORDERS_DLX);
     }
 
     @Bean
@@ -270,8 +286,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    Binding dlqBinding(Queue ordersDlq, FanoutExchange ordersDlx) {
-        return BindingBuilder.bind(ordersDlq).to(ordersDlx);
+    Binding dlqBinding(Queue ordersDlq, TopicExchange ordersDlx) {
+        return BindingBuilder.bind(ordersDlq).to(ordersDlx).with("#");
     }
 
         
@@ -291,8 +307,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    Queue pdfFanoutDlq() {
-        return new Queue(COLA_PDF_FO_DLQ, true);
+    Queue pdfTopicDlq() {
+        return new Queue(COLA_PDF_TOPIC_DLQ, true);
     }
 
     @Bean
@@ -316,19 +332,19 @@ public class RabbitConfig {
     }
 
     @Bean
-    Binding pdfFanoutDlqBinding(
-            Queue pdfFanoutDlq,
+    Binding pdfTopicDlqBinding(
+            Queue pdfTopicDlq,
             DirectExchange deadLetterExchange) {
 
-        return BindingBuilder.bind(pdfFanoutDlq)
+        return BindingBuilder.bind(pdfTopicDlq)
                 .to(deadLetterExchange)
-                .with(DLQ_PDF_FO_KEY);
+                .with(DLQ_PDF_TOPIC_KEY);
     }
 
     @Bean
     DirectExchange eventosExchange() {
         return new DirectExchange(EVENTOS_EXCHANGE);
     }
-
+///////////////////////////////////////////////////////////
 
 }

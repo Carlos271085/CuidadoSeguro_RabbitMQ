@@ -5,8 +5,13 @@
 - **RabbitMQ**: AMQP `5672`, administration UI `15672`.
 - **queues**: Spring Boot API on port `8086`.
 - **PDF FastAPI**: not included in this ZIP; the queues service calls it at `PDF_SERVICE_URL` (default in Compose: `http://host.docker.internal:8000`).
+- **Notification Service**: not included in this ZIP; it receives the generated PDF and sends it as an email attachment at `NOTIFICATION_SERVICE_URL` (default in Compose: `http://host.docker.internal:8089`).
 
 The Spring Boot application declares its exchanges, queues and bindings in `RabbitConfig.java` when it connects to RabbitMQ. This Compose file does not replace those definitions.
+
+## PDF email flow
+
+`POST /api/pdf_direct` or `POST /api/pdf_topic` publishes a PDF request. The queues service calls `CuidadoSeguro_PDF_Service` at `POST /api/pdf/generar`, stores the result for download, and publishes a `correo.enviar` event. The same service consumes that event and calls `CuidadoSeguro_Notification_Service` at `POST /api/correos/enviar-pdf`, which decodes the PDF and sends it as an attachment.
 
 ## Start
 
@@ -47,6 +52,7 @@ $body = @{
   nombre = "Paciente de prueba"
   fecha_nacimiento = "2000-01-01"
   tipo_documento = "Ficha clínica"
+  correo_destino = "paciente@example.com"
 } | ConvertTo-Json
 
 Invoke-RestMethod -Method Post `
