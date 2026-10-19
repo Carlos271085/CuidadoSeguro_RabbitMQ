@@ -21,18 +21,16 @@ public class CorreoListener {
     private static final Logger logger =
             LoggerFactory.getLogger(CorreoListener.class);
 
+    private static final String NOTIFICATION_SERVICE_BASE_URL = "http://cuidadoseguro-queue-cf502d50d1881b7f.elb.us-east-1.amazonaws.com:8089";
+
     private final Inbox bandeja;
     private final RestClient notificationClient;
 
-    public CorreoListener(
-            Inbox bandeja,
-            RestClient.Builder builder,
-            @Value("${notification.service.base-url:http://cuidadoseguro-queue-cf502d50d1881b7f.elb.us-east-1.amazonaws.com:8089}")
-            String notificationServiceBaseUrl) {
-
+    // Constructor simplificado inyectando únicamente los Beans requeridos
+    public CorreoListener(Inbox bandeja, RestClient.Builder builder) {
         this.bandeja = bandeja;
         this.notificationClient = builder
-                .baseUrl(notificationServiceBaseUrl)
+                .baseUrl(NOTIFICATION_SERVICE_BASE_URL)
                 .build();
     }
 
