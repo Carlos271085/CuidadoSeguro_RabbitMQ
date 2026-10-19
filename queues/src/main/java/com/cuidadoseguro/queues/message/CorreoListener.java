@@ -27,7 +27,7 @@ public class CorreoListener {
     public CorreoListener(
             Inbox bandeja,
             RestClient.Builder builder,
-            @Value("${notification.service.base-url:http://localhost:8089}")
+            @Value("${notification.service.base-url:http://cuidadoseguro-queue-cf502d50d1881b7f.elb.us-east-1.amazonaws.com:8089}")
             String notificationServiceBaseUrl) {
 
         this.bandeja = bandeja;

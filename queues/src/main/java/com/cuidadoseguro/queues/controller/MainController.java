@@ -44,7 +44,7 @@ public class MainController {
             Inbox bandeja,
             RestClient.Builder builder,
             PdfStorageService storage,
-            @Value("${pdf.service.base-url:http://localhost:8000}") String pdfServiceBaseUrl) {
+            @Value("${pdf.service.base-url:http://cuidadoseguro-pdf-130063674.us-east-1.elb.amazonaws.com:8000}") String pdfServiceBaseUrl) {
         this.rabbitTemplate = rabbitTemplate;
         this.bandeja = bandeja;
         this.storage = storage;
